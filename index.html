@@ -1,0 +1,85 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Insurance ML App</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 600px; margin: 30px auto; padding: 0 15px; }
+    form { background: #f4f4f4; padding: 15px; border-radius: 8px; margin-bottom: 10px; }
+    input, select, button { width: 100%; padding: 8px; margin: 5px 0; box-sizing: border-box; }
+    button { background: #2563eb; color: white; border: none; border-radius: 4px; cursor: pointer; }
+    .result { font-weight: bold; min-height: 24px; }
+  </style>
+</head>
+<body>
+  <h1>Insurance ML App</h1>
+
+  <h2>Predict Insurance Charges (Regression)</h2>
+  <form id="regForm">
+    <input type="number" id="r_age" placeholder="Age" required>
+    <input type="number" step="any" id="r_bmi" placeholder="BMI" required>
+    <input type="number" id="r_children" placeholder="Children" required>
+    <select id="r_smoker">
+      <option value="0">Non-smoker</option>
+      <option value="1">Smoker</option>
+    </select>
+    <button type="submit">Predict charges</button>
+  </form>
+  <p class="result" id="regResult"></p>
+
+  <h2>Predict Smoker (Classification)</h2>
+  <form id="clfForm">
+    <input type="number" id="c_age" placeholder="Age" required>
+    <input type="number" step="any" id="c_bmi" placeholder="BMI" required>
+    <input type="number" id="c_children" placeholder="Children" required>
+    <input type="number" step="any" id="c_charges" placeholder="Charges" required>
+    <button type="submit">Predict smoker</button>
+  </form>
+  <p class="result" id="clfResult"></p>
+
+  <script>
+    async function send(url, body, resultId, format) {
+      const out = document.getElementById(resultId);
+      out.textContent = "Loading...";
+      try {
+        const res = await fetch(url, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(body),
+        });
+        if (!res.ok) throw new Error("Server error " + res.status);
+        const data = await res.json();
+        out.textContent = format(data);
+      } catch (err) {
+        out.textContent = "Error: " + err.message;
+      }
+    }
+
+    document.getElementById("regForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const body = {
+        age: parseInt(document.getElementById("r_age").value),
+        bmi: parseFloat(document.getElementById("r_bmi").value),
+        children: parseInt(document.getElementById("r_children").value),
+        smoker: parseInt(document.getElementById("r_smoker").value),
+      };
+      send("/predict/regression", body, "regResult",
+        (d) => "Predicted charges: $" + d.predicted_charges.toFixed(2));
+    });
+
+    document.getElementById("clfForm").addEventListener("submit", (e) => {
+      e.preventDefault();
+      const body = {
+        age: parseInt(document.getElementById("c_age").value),
+        bmi: parseFloat(document.getElementById("c_bmi").value),
+        children: parseInt(document.getElementById("c_children").value),
+        charges: parseFloat(document.getElementById("c_charges").value),
+      };
+      send("/predict/classification", body, "clfResult",
+        (d) => (d.predicted_smoker === 1 ? "Smoker" : "Non-smoker") +
+               " (probability of smoker: " + (d.smoker_probability * 100).toFixed(1) + "%)");
+    });
+  </script>
+</body>
+</html>
