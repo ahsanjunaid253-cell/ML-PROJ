@@ -1,0 +1,112 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Insurance ML App</title>
+  <style>
+    body { font-family: Arial, sans-serif; max-width: 700px; margin: 30px auto; padding: 0 15px; }
+    .card { border: 1px solid #ccc; border-radius: 8px; padding: 15px 20px; margin-bottom: 25px; }
+    label { display: block; margin-top: 10px; }
+    input, select { width: 100%; padding: 6px; margin-top: 4px; box-sizing: border-box; }
+    button { margin-top: 15px; padding: 8px 16px; cursor: pointer; }
+    .result { margin-top: 15px; font-weight: bold; white-space: pre-line; }
+  </style>
+</head>
+<body>
+  <h1>Insurance ML App</h1>
+
+  <!-- Regression form -->
+  <div class="card">
+    <h2>1. Predict insurance charges</h2>
+    <form id="reg-form">
+      <label>Age <input type="number" id="reg-age" min="18" max="100" value="35" required></label>
+      <label>BMI <input type="number" id="reg-bmi" step="0.1" min="10" max="60" value="27.5" required></label>
+      <label>Children <input type="number" id="reg-children" min="0" max="10" value="0" required></label>
+      <label>Smoker
+        <select id="reg-smoker">
+          <option value="0">No</option>
+          <option value="1">Yes</option>
+        </select>
+      </label>
+      <button type="submit">Predict charges</button>
+    </form>
+    <div class="result" id="reg-result"></div>
+  </div>
+
+  <!-- Classification form -->
+  <div class="card">
+    <h2>2. Predict if a person is a smoker</h2>
+    <form id="clf-form">
+      <label>Age <input type="number" id="clf-age" min="18" max="100" value="35" required></label>
+      <label>BMI <input type="number" id="clf-bmi" step="0.1" min="10" max="60" value="27.5" required></label>
+      <label>Children <input type="number" id="clf-children" min="0" max="10" value="0" required></label>
+      <label>Charges ($) <input type="number" id="clf-charges" step="0.01" min="0" value="30000" required></label>
+      <label>Model
+        <select id="clf-model">
+          <option value="best">Best model (automatic)</option>
+          <option value="logistic_regression">Logistic Regression</option>
+          <option value="svm">SVM</option>
+          <option value="naive_bayes">Naive Bayes</option>
+          <option value="decision_tree">Decision Tree</option>
+          <option value="random_forest">Random Forest</option>
+        </select>
+      </label>
+      <button type="submit">Predict smoker</button>
+    </form>
+    <div class="result" id="clf-result"></div>
+  </div>
+
+  <script>
+    const API_URL = "http://127.0.0.1:8000";
+
+    // Sends the data to the backend and shows the result (or an error)
+    async function sendRequest(endpoint, payload, resultId, formatResult) {
+      const box = document.getElementById(resultId);
+      box.textContent = "Loading...";
+      try {
+        const response = await fetch(API_URL + endpoint, {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify(payload)
+        });
+        if (!response.ok) {
+          throw new Error("Server returned status " + response.status);
+        }
+        const data = await response.json();
+        box.textContent = formatResult(data);
+      } catch (error) {
+        box.textContent = "Error: " + error.message + " (is the backend running?)";
+      }
+    }
+
+    document.getElementById("reg-form").addEventListener("submit", function (event) {
+      event.preventDefault();   // stop the page from reloading
+      const payload = {
+        age: parseInt(document.getElementById("reg-age").value),
+        bmi: parseFloat(document.getElementById("reg-bmi").value),
+        children: parseInt(document.getElementById("reg-children").value),
+        smoker: parseInt(document.getElementById("reg-smoker").value)
+      };
+      sendRequest("/predict/regression", payload, "reg-result",
+        data => "Predicted charges: $" + data.predicted_charges);
+    });
+
+    document.getElementById("clf-form").addEventListener("submit", function (event) {
+      event.preventDefault();
+      const payload = {
+        age: parseInt(document.getElementById("clf-age").value),
+        bmi: parseFloat(document.getElementById("clf-bmi").value),
+        children: parseInt(document.getElementById("clf-children").value),
+        charges: parseFloat(document.getElementById("clf-charges").value),
+        model: document.getElementById("clf-model").value
+      };
+      sendRequest("/predict/classification", payload, "clf-result",
+        data => "Prediction: " + data.label +
+                " (probability of smoker: " + data.probability_smoker + ")" +
+                "\nModel: " + data.model_used +
+                " (test accuracy " + data.model_accuracy + ")");
+    });
+  </script>
+</body>
+</html>
